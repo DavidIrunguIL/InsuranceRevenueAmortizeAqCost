@@ -4,11 +4,14 @@ import pandas as pd
 import numpy as np
 from datetime import datetime as dt
 import warnings
+import logging
 warnings.filterwarnings('ignore')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 current_year = dt.now().year
-month = dt.now().month
+month = dt.now().month - 1
 prev_year = current_year - 1
 
 # if 
@@ -22,20 +25,18 @@ end_period = last_month.strftime("%Y%m")
 
 
 GetData = get_data.GetData
-current_prem_reg = GetData.get_prem_reg(current_year, month-1)
+current_prem_reg = GetData.get_prem_reg(current_year, month)
 prev_prem_reg = GetData.get_prem_reg(prev_year, 12)
 
 
 prem_reg = pd.concat([current_prem_reg,prev_prem_reg], axis=0)
 
 prem_reg.to_excel(f"output_data/prem_reg.xlsx", index=False)
-current_upr_reg = GetData.get_upr_reg(current_year, month-1)
+current_upr_reg = GetData.get_upr_reg(current_year, month)
 prev_upr_reg = GetData.get_upr_reg(prev_year, 12)
 
-
-
-prem_reg['NetAfterXOL'] = prem_reg['netamount'] - prem_reg['XolTotal']
-
+## adjustoments to the prem_regester where needed
+prem_reg.loc[prem_reg['FinanceCode'] == '122', 'Department'] = 'PERSONAL ACCIDENT'
 
 prem_register_list = [
     "basicprem",  "brkcomm", "tlevy", "pcf", "duty", "wtax", "eareamt", "surp1amt", "surp2amt", 
@@ -79,19 +80,6 @@ insurance_rev = InsuranceRevenueGenerator.get_insurance_revenue(current_upr_pivo
 
 numeric_cols = insurance_rev.columns.difference(['Department'])
 insurance_rev[numeric_cols] = insurance_rev[numeric_cols].apply(pd.to_numeric, errors='coerce')
-insurance_rev = insurance_rev[insurance_rev['Department'] != 'Total']
-period = prem_reg['period'].max()
-# insurance_rev['period'] = period
-# existing_insurance_revenue = domo.read_dataframe('Insurance_revenue', query='SELECT * FROM table')
-
-
-# if existing_insurance_revenue['period'].max() == period:
-#     existing_insurance_revenue = existing_insurance_revenue[existing_insurance_revenue['period'] != period]
-
-# insurance_rev = pd.concat([insurance_rev,existing_insurance_revenue])
-#period_type
-# cond = [(insurance_rev['period'] == period), 
-#        (insurance_rev['period'] < period)]
-# vals = ['current_period', 'previous_period']
-# insurance_rev['period_type'] = np.select(cond, vals)
-insurance_rev.to_excel(f"insurance_revenue_amortize_aq_cost_{period}.xlsx", index=False)
+# insurance_rev = insurance_rev[insurance_rev['Department'] != 'Total'] #remove total when not needed 
+year_month = f"{current_year}{month:02d}"
+insurance_rev.to_excel(f"output_data/insurance_revenue_amortize_aq_cost_{year_month}.xlsx", index=False)

@@ -5,6 +5,7 @@ import warnings
 from datetime import datetime as dt, timedelta
 
 warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class InsuranceRevenueGenerator:
@@ -51,9 +52,16 @@ class InsuranceRevenueGenerator:
         # Current year premium data
         prem_current = current_prem_piv_table[['Department', 'basicprem', 'NetAfterXOL', 'brkcomm', 'NetComm']].copy()
         prem_current['Reins Prem'] = prem_current['basicprem'] - prem_current['NetAfterXOL']
+        prem_current[f'ADJ_Reins Prem_{current_year}'] = 0 ##to allow manual adjustements for Rein Prem
         prem_current['Reins Comm'] = prem_current['brkcomm'] - prem_current['NetComm']
+        prem_current[f'ADJ_brkcomm_{current_year}'] = 0 ##to allow manual adjustements for brkcomm
         prem_current = prem_current.add_suffix(f'_{current_year}')
         prem_current = prem_current.rename(columns={f'Department_{current_year}': 'Department'})
+
+        ##Adding columns that will need manual adjustemnts       
+        prem_current[f'ADJ_Reins Comm_{current_year}'] = 0
+        ###
+
 
         # Current year UPR data
         upr_current = current_upr_pivot_table[['departmentname', 'GrossUPR', 'NetUPR', 'BrokerDAC', 'NETDAC']].copy()
@@ -134,5 +142,8 @@ class InsuranceRevenueGenerator:
         insurance_rev['Reins Commission Rate Current'] = insurance_rev[f'Reins Comm_{current_year}'] / insurance_rev[f'Reins Prem_{current_year}']
         insurance_rev['Reins Commission Rate Previous'] = insurance_rev[f'Reins Comm_{prev_year}'] / insurance_rev['Reins Prem Previous']
         insurance_rev['Reins Commission Rate Variance'] = insurance_rev['Reins Commission Rate Current'] - insurance_rev['Reins Commission Rate Previous']
+
+        ##additional columns
+        insurance_rev["Opening insurance contract liabilities"] = insurance_rev["GrossUPR_2024"] - insurance_rev["BrokerDAC_2024"]
 
         return insurance_rev
